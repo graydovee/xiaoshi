@@ -8,6 +8,7 @@ import (
 
 type Session interface {
 	GetResponse(question string) (string, error)
+	GetImageResponse(prompt string) ([]string, error)
 	History() History
 }
 
@@ -16,6 +17,24 @@ type ChatSession struct {
 
 	prompt  []Message
 	history History
+}
+
+func (c *ChatSession) GetImageResponse(prompt string) ([]string, error) {
+	image, err := c.chatBot.GenImage(prompt)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []string
+	for _, d := range image.Data {
+		if d.File != "" {
+			res = append(res, d.File)
+		}
+	}
+	if len(res) == 0 {
+		return nil, fmt.Errorf("no image url")
+	}
+	return res, nil
 }
 
 func NewChat(chatBot ChatBot, history History) *ChatSession {

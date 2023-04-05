@@ -10,8 +10,12 @@ import (
 	"github.com/dezhishen/onebot-sdk/pkg/config"
 	"github.com/dezhishen/onebot-sdk/pkg/event"
 	"github.com/dezhishen/onebot-sdk/pkg/model"
+	"github.com/segmentio/asm/base64"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -81,17 +85,10 @@ func (s *QQBot) startListen() error {
 	return nil
 }
 
-func (s *QQBot) SendGroupMsg(groupId int64, message string) error {
+func (s *QQBot) SendGroupMsg(groupId int64, msgs ...*model.MessageSegment) error {
 	msg := &model.GroupMsg{
 		GroupId: groupId,
-		Message: []*model.MessageSegment{
-			{
-				Type: "text",
-				Data: &model.MessageElementText{
-					Text: message,
-				},
-			},
-		},
+		Message: msgs,
 	}
 	result, err := s.ApiClient.SendGroupMsg(msg)
 	if err != nil {
@@ -103,17 +100,10 @@ func (s *QQBot) SendGroupMsg(groupId int64, message string) error {
 	return nil
 }
 
-func (s *QQBot) SendPrivateMsg(userId int64, message string) error {
+func (s *QQBot) SendPrivateMsg(userId int64, msgs ...*model.MessageSegment) error {
 	msg := &model.PrivateMsg{
-		UserId: userId,
-		Message: []*model.MessageSegment{
-			{
-				Type: "text",
-				Data: &model.MessageElementText{
-					Text: message,
-				},
-			},
-		},
+		UserId:  userId,
+		Message: msgs,
 	}
 	result, err := s.ApiClient.SendPrivateMsg(msg)
 	if err != nil {
@@ -154,19 +144,19 @@ func (s *QQBot) onGroupMsg(msg model.EventMessageGroup) error {
 		return c
 	})
 
-	var response string
+	var response model.MessageSegments
 	var err error
 	if cmd := strings.TrimSpace(text.Text); strings.HasPrefix(cmd, "/") {
 		response = s.onCommand(cmd, chat)
 	} else {
-		response, err = chat.GetResponse(text.Text)
+		response, err = s.chatResponse(text.Text, chat)
 		if err != nil {
 			return err
 		}
 	}
 
 	log.Infof("send group response: %s for %d", response, msg.GroupId)
-	return s.SendGroupMsg(msg.GroupId, response)
+	return s.SendGroupMsg(msg.GroupId, response...)
 }
 
 func (s *QQBot) onPrivateMsg(msg model.EventMessagePrivate) error {
@@ -190,26 +180,71 @@ func (s *QQBot) onPrivateMsg(msg model.EventMessagePrivate) error {
 		return c
 	})
 
-	var response string
+	var response model.MessageSegments
 	var err error
 	if cmd := strings.TrimSpace(text.Text); strings.HasPrefix(cmd, "/") {
 		response = s.onCommand(cmd, chat)
 	} else {
-		response, err = chat.GetResponse(text.Text)
+		response, err = s.chatResponse(text.Text, chat)
 		if err != nil {
 			return err
 		}
 	}
 
 	log.Infof("send private response: %s for %d", response, msg.UserId)
-	return s.SendPrivateMsg(msg.UserId, response)
+	return s.SendPrivateMsg(msg.UserId, response...)
 }
 
-const (
-	CmdRole = "role"
-)
+func (s *QQBot) chatResponse(text string, chat *chatgpt.ChatSession) (model.MessageSegments, error) {
+	switch {
+	case strings.Contains(text, ":"), strings.Contains(text, "："):
+		// paint response
+		newText := strings.Replace(text, "：", ":", 1)
+		splits := strings.SplitN(newText, ":", 2)
+		if strings.Contains(splits[0], "画") || strings.Contains(splits[0], "draw") {
+			response, err := chat.GetImageResponse(splits[1])
+			if err != nil {
+				return nil, err
+			}
+			var msgs model.MessageSegments
+			for _, resp := range response {
+				file, err := os.ReadFile(resp)
+				if err != nil {
+					return nil, err
+				}
+				var imgUrl url.URL
+				imgUrl.Scheme = "base64"
+				imgUrl.Path = base64.StdEncoding.EncodeToString(file)
+				msgs = append(msgs, &model.MessageSegment{
+					Type: model.CQTypeImage,
+					Data: &model.MessageElementImage{
+						File: filepath.Base(resp),
+						Url:  imgUrl.String(),
+					},
+				})
+			}
+			return msgs, nil
 
-func (s *QQBot) onCommand(cmdStr string, chat *chatgpt.ChatSession) string {
+		}
+		fallthrough
+	default:
+		// chat response
+		response, err := chat.GetResponse(text)
+		if err != nil {
+			return nil, err
+		}
+		return model.MessageSegments{
+			{
+				Type: model.CQTypeText,
+				Data: &model.MessageElementText{
+					Text: response,
+				},
+			},
+		}, nil
+	}
+}
+
+func (s *QQBot) onCommand(cmdStr string, chat *chatgpt.ChatSession) model.MessageSegments {
 	out := bytes.NewBuffer(nil)
 
 	root := cobra.Command{
@@ -248,8 +283,8 @@ func (s *QQBot) onCommand(cmdStr string, chat *chatgpt.ChatSession) string {
 		},
 	}
 	root.AddCommand(list)
-	promt := &cobra.Command{
-		Use:   "promt [detail]",
+	prompt := &cobra.Command{
+		Use:   "prompt [detail]",
 		Short: "手动设定人格",
 		Long:  "手动设定人格",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -262,11 +297,19 @@ func (s *QQBot) onCommand(cmdStr string, chat *chatgpt.ChatSession) string {
 			return nil
 		},
 	}
-	root.AddCommand(promt)
+	root.AddCommand(prompt)
 	if err := root.Execute(); err != nil {
 		log.Error("execute sub command error: ", err)
 	}
-	return out.String()
+
+	return model.MessageSegments{
+		{
+			Type: model.CQTypeText,
+			Data: &model.MessageElementText{
+				Text: out.String(),
+			},
+		},
+	}
 }
 
 func splitArgs(s string) []string {

@@ -26,7 +26,7 @@ func NewServer(config string) (*Server, error) {
 	if err = yaml.Unmarshal(secretsBin, &s.secrets); err != nil {
 		return nil, err
 	}
-	s.gpt = chatgpt.NewChatGPT(s.secrets.ChatGpt.ApiKey)
+	s.gpt = chatgpt.NewChatGPT(&s.secrets.ChatGpt)
 
 	log.Info("qq qqBot init, id: ", s.secrets.QQBot.Id)
 	s.qqBot, err = bot.NewQQBot(config, s.secrets.QQBot.Id, s.gpt)

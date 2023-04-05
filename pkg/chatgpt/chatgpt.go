@@ -2,38 +2,44 @@ package chatgpt
 
 import (
 	"bytes"
+	"chatgpt/pkg/config"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 )
 
 const (
-	urlChat  = "https://api.openai.com/v1/chat/completions"
-	urlImage = "https://api.openai.com/v1/images/generations"
+	urlChat     = "https://api.openai.com/v1/chat/completions"
+	urlImageGen = "https://api.openai.com/v1/images/generations"
 
 	model3d50301 = "gpt-3.5-turbo-0301"
 	model3d5     = "gpt-3.5-turbo"
 )
 
 type ChatBot interface {
-	GetResponse(msg []Message) (*Response, error)
+	GetResponse(msg []Message) (*ChatResponse, error)
+	GenImage(prompt string) (*GenImageResponse, error)
 }
 
 var _ ChatBot = &ChatGPT{}
 
 type ChatGPT struct {
-	apiKey string
-	client *http.Client
+	apiKey   string
+	imageDir string
+	client   *http.Client
 }
 
-func NewChatGPT(apiKey string) *ChatGPT {
+func NewChatGPT(gpt *config.ChatGPT) *ChatGPT {
 	// 创建 Client 对象，并使用 Transport 对象
 	return &ChatGPT{
-		apiKey: apiKey,
+		apiKey:   gpt.ApiKey,
+		imageDir: gpt.ImageDir,
 		client: &http.Client{
 			Transport: GetTransport(),
 		},
@@ -59,21 +65,80 @@ func GetTransport() *http.Transport {
 	return &http.Transport{Proxy: http.ProxyURL(proxyURL)}
 }
 
-func (c *ChatGPT) GetResponse(msg []Message) (*Response, error) {
+func (c *ChatGPT) GetResponse(msg []Message) (*ChatResponse, error) {
 	log.Debugf("answer for: %v", msg)
-	request := &RequestBody{
+	request := &ChatRequestBody{
 		Model:     model3d5,
 		Messages:  msg,
 		N:         1,
 		MaxTokens: 256,
 	}
 
-	requestBody, err := json.Marshal(request)
+	var response ChatResponse
+	if err := c.post(urlChat, request, &response); err != nil {
+		return nil, err
+	}
+	return &response, nil
+}
+
+func (c *ChatGPT) GenImage(prompt string) (*GenImageResponse, error) {
+	log.Debugf("gen image for: %v", prompt)
+	request := &GenImageRequestBody{
+		Prompt: prompt,
+		N:      1,
+		Size:   "512x512",
+	}
+
+	var response GenImageResponse
+	if err := c.post(urlImageGen, request, &response); err != nil {
+		return nil, err
+	}
+
+	for i, data := range response.Data {
+		id := uuid.New().String()
+		fileName := filepath.Join(c.imageDir, id+".png")
+		if err := c.download(data.Url, fileName); err != nil {
+			log.Error("save image error: ", err)
+			continue
+		}
+		response.Data[i].File = fileName
+	}
+	return &response, nil
+}
+
+func (c *ChatGPT) download(url, fileName string) error {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	file, err := os.Create(fileName)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *ChatGPT) post(url string, body any, response any) error {
+	requestBody, err := json.Marshal(body)
 	log.Debug(string(requestBody))
 
-	req, err := http.NewRequest("POST", urlChat, bytes.NewBuffer(requestBody))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// 设置 HTTP 请求标头
@@ -84,7 +149,7 @@ func (c *ChatGPT) GetResponse(msg []Message) (*Response, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -93,32 +158,33 @@ func (c *ChatGPT) GetResponse(msg []Message) (*Response, error) {
 	// 处理 HTTP 响应
 	responseBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if err != nil {
-		return nil, err
-	}
-	var response Response
-	if err = json.Unmarshal(responseBytes, &response); err != nil {
-		return nil, err
-	}
-	log.Debug("response: ", string(responseBytes))
 
-	return &response, nil
+	log.Debug("responseBytes: ", string(responseBytes))
+
+	if response != nil {
+		return json.Unmarshal(responseBytes, response)
+	}
+	return nil
 }
 
 type RepeatedBot struct {
 }
 
+func (r RepeatedBot) GenImage(prompt string) (*GenImageResponse, error) {
+	return nil, fmt.Errorf("unsupported")
+}
+
 var _ ChatBot = &RepeatedBot{}
 
-func (r RepeatedBot) GetResponse(msg []Message) (*Response, error) {
+func (r RepeatedBot) GetResponse(msg []Message) (*ChatResponse, error) {
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return nil, err
 	}
 	log.Info(string(data))
-	return &Response{
+	return &ChatResponse{
 		Choices: []Choice{
 			{
 				Message: Message{

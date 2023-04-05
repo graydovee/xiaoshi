@@ -6,7 +6,8 @@ type Config struct {
 }
 
 type ChatGPT struct {
-	ApiKey string `json:"apiKey" yaml:"apiKey"`
+	ApiKey   string `json:"apiKey" yaml:"apiKey"`
+	ImageDir string `json:"imageDir" yaml:"imageDir"`
 }
 
 type QQBot struct {

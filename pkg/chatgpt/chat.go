@@ -3,10 +3,12 @@ package chatgpt
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"strings"
 )
 
 type Session interface {
 	GetResponse(question string) (string, error)
+	History() History
 }
 
 type ChatSession struct {
@@ -52,8 +54,19 @@ func (c *ChatSession) GetResponse(question string) (string, error) {
 		return "", fmt.Errorf("no choices")
 	}
 
-	reply := response.Choices[0].Message
-	c.history.AddHistory(reply)
+	var replys []string
+	for _, choice := range response.Choices {
+		replys = append(replys, choice.Message.Content)
+	}
+	reply := strings.Join(replys, "\n")
+	c.history.AddHistory(Message{
+		Role:    RoleAssistant,
+		Content: reply,
+	})
 
-	return reply.Content, nil
+	return reply, nil
+}
+
+func (c *ChatSession) History() History {
+	return c.history
 }

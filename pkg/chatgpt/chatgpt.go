@@ -12,7 +12,9 @@ import (
 )
 
 const (
-	gpturl       = "https://api.openai.com/v1/chat/completions"
+	urlChat  = "https://api.openai.com/v1/chat/completions"
+	urlImage = "https://api.openai.com/v1/images/generations"
+
 	model3d50301 = "gpt-3.5-turbo-0301"
 	model3d5     = "gpt-3.5-turbo"
 )
@@ -20,6 +22,8 @@ const (
 type ChatBot interface {
 	GetResponse(msg []Message) (*Response, error)
 }
+
+var _ ChatBot = &ChatGPT{}
 
 type ChatGPT struct {
 	apiKey string
@@ -58,18 +62,16 @@ func GetTransport() *http.Transport {
 func (c *ChatGPT) GetResponse(msg []Message) (*Response, error) {
 	log.Debugf("answer for: %v", msg)
 	request := &RequestBody{
-		Model:       model3d5,
-		Messages:    msg,
-		Temperature: 0.7,
-		N:           1,
-		Stop:        "\n",
-		MaxTokens:   200,
+		Model:     model3d5,
+		Messages:  msg,
+		N:         1,
+		MaxTokens: 256,
 	}
 
 	requestBody, err := json.Marshal(request)
 	log.Debug(string(requestBody))
 
-	req, err := http.NewRequest("POST", gpturl, bytes.NewBuffer(requestBody))
+	req, err := http.NewRequest("POST", urlChat, bytes.NewBuffer(requestBody))
 	if err != nil {
 		return nil, err
 	}
@@ -107,6 +109,8 @@ func (c *ChatGPT) GetResponse(msg []Message) (*Response, error) {
 
 type RepeatedBot struct {
 }
+
+var _ ChatBot = &RepeatedBot{}
 
 func (r RepeatedBot) GetResponse(msg []Message) (*Response, error) {
 	data, err := json.Marshal(msg)

@@ -8,6 +8,7 @@ import (
 type History interface {
 	AddHistory(msg Message)
 	GetHistory() []Message
+	Clear()
 }
 
 type historyMessage struct {
@@ -22,6 +23,12 @@ type MemoryLimitHistory struct {
 
 	limit   int
 	timeout time.Duration
+}
+
+func (m *MemoryLimitHistory) Clear() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.history = nil
 }
 
 func NewMemoryLimitHistory(limit int, timeout time.Duration) *MemoryLimitHistory {

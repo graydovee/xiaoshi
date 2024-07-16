@@ -1,8 +1,8 @@
 package chatgpt
 
 import (
-	"chatgpt/pkg/config"
 	"fmt"
+	"git.graydove.cn/graydove/xiaoshi.git/pkg/config"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"os"

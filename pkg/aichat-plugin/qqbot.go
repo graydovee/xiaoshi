@@ -1,22 +1,25 @@
-package bot
+package aichat_plugin
 
 import (
-	"chatgpt/pkg/chatgpt"
-	"chatgpt/pkg/config"
-	"chatgpt/pkg/util"
 	"context"
-	"fmt"
+	"git.graydove.cn/graydove/xiaoshi.git/pkg/chatgpt"
+	"git.graydove.cn/graydove/xiaoshi.git/pkg/config"
+	"git.graydove.cn/graydove/xiaoshi.git/pkg/util"
 	log "github.com/sirupsen/logrus"
 	zero "github.com/wdvxdr1123/ZeroBot"
-	"github.com/wdvxdr1123/ZeroBot/driver"
 	"github.com/wdvxdr1123/ZeroBot/extension/shell"
 	"github.com/wdvxdr1123/ZeroBot/message"
 	"strconv"
-	"strings"
 	"time"
 )
 
-type QQBot struct {
+var aiBot *AIBot
+
+func GetBot() *AIBot {
+	return aiBot
+}
+
+type AIBot struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -28,41 +31,22 @@ type QQBot struct {
 	gpt *chatgpt.ChatGPT
 }
 
-func NewQQBot(cfg *config.Config, gpt *chatgpt.ChatGPT) (*QQBot, error) {
-	b := &QQBot{
+func InitAIBot(cfg *config.Config) {
+	Register()
+
+	gpt := chatgpt.NewChatGPT(&cfg.ChatGpt)
+
+	log.Info("qq qqBot init, id: ", cfg.QQBot.Id)
+
+	aiBot = &AIBot{
 		cfg: cfg,
 		gpt: gpt,
 		id:  strconv.FormatInt(cfg.QQBot.Id, 10),
 	}
-	return b, nil
+	return
 }
 
-func (s *QQBot) Start() error {
-	if s.ctx != nil {
-		return nil
-	}
-	var drivers []zero.Driver
-	if s.cfg.QQBot.Ws != nil {
-		wsUrl := fmt.Sprintf("ws://%s:%d", strings.TrimPrefix(s.cfg.QQBot.Ws.Addr, "ws://"), s.cfg.QQBot.Ws.Port)
-		drivers = append(drivers, driver.NewWebSocketClient(wsUrl, s.cfg.QQBot.Ws.Token))
-	}
-
-	s.registerHandler()
-	zero.RunAndBlock(&zero.Config{
-		NickName:      s.cfg.QQBot.Zero.NickNames,
-		CommandPrefix: "/",
-		SuperUsers:    s.cfg.QQBot.Zero.SuperUsers,
-		Driver:        drivers,
-	}, nil)
-	return nil
-}
-
-func (s *QQBot) registerHandler() {
-	zero.OnCommand("config").Handle(s.onCommand).SetBlock(true)
-	zero.OnMessage(zero.OnlyToMe).Handle(s.onMessage).SecondPriority()
-}
-
-func (s *QQBot) getSession(ctx *zero.Ctx) *chatgpt.ChatSession {
+func (s *AIBot) getSession(ctx *zero.Ctx) *chatgpt.ChatSession {
 	if ctx.Event.GroupID != 0 {
 		session, _ := s.group.LoadOrStore(ctx.Event.GroupID, func() *chatgpt.ChatSession {
 			c := chatgpt.NewChat(s.gpt, chatgpt.NewMemoryLimitHistory(s.cfg.ChatGpt.Session.ExpireSeconds, time.Second*time.Duration(s.cfg.ChatGpt.Session.ExpireSeconds)))
@@ -81,7 +65,7 @@ func (s *QQBot) getSession(ctx *zero.Ctx) *chatgpt.ChatSession {
 	return nil
 }
 
-func (s *QQBot) onMessage(ctx *zero.Ctx) {
+func (s *AIBot) OnMessage(ctx *zero.Ctx) {
 	text := ctx.Event.Message.ExtractPlainText()
 	if text == "" {
 		return
@@ -102,7 +86,7 @@ func (s *QQBot) onMessage(ctx *zero.Ctx) {
 	return
 }
 
-func (s *QQBot) onCommand(ctx *zero.Ctx) {
+func (s *AIBot) OnCommand(ctx *zero.Ctx) {
 	chatSession := s.getSession(ctx)
 	if chatSession == nil {
 		log.Error("chat session is nil")

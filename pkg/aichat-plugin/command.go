@@ -1,10 +1,10 @@
-package bot
+package aichat_plugin
 
 import (
 	"bytes"
-	"chatgpt/pkg/chatgpt"
-	"chatgpt/pkg/util"
 	"fmt"
+	"git.graydove.cn/graydove/xiaoshi.git/pkg/chatgpt"
+	"git.graydove.cn/graydove/xiaoshi.git/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"strconv"

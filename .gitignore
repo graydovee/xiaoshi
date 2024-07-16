@@ -3,3 +3,5 @@ configs
 bin
 logs
 start.sh
+
+data

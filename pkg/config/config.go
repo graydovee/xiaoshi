@@ -19,9 +19,10 @@ type ChatSession struct {
 }
 
 type QQBot struct {
-	Id   int64      `json:"id" yaml:"id"`
-	Ws   *WebSocket `json:"ws,omitempty" yaml:"ws,omitempty"`
-	Zero ZeroConfig `json:"zero" yaml:"zero"`
+	Id     int64      `json:"id" yaml:"id"`
+	Ws     *WebSocket `json:"ws,omitempty" yaml:"ws,omitempty"`
+	Zero   ZeroConfig `json:"zero" yaml:"zero"`
+	WebGui WebGui     `json:"webGui" yaml:"webGui"`
 }
 
 type ZeroConfig struct {
@@ -34,4 +35,9 @@ type WebSocket struct {
 	Addr  string `json:"addr" yaml:"addr"`
 	Port  int    `json:"port" yaml:"port"`
 	Token string `json:"token" yaml:"token"`
+}
+
+type WebGui struct {
+	Host string `json:"host" yaml:"host"`
+	Port int    `json:"port" yaml:"port"`
 }

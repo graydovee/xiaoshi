@@ -4,9 +4,11 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"chatgpt/pkg/server"
+	"git.graydove.cn/graydove/xiaoshi.git/pkg/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	easy "github.com/t-tomalak/logrus-easy-formatter"
+	"gopkg.in/yaml.v3"
 	"os"
 )
 
@@ -25,13 +27,17 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.SetLevel(log.Level(logLevel))
 		log.Info("loading config: ", configFile)
-		srv, err := server.NewServer(configFile)
+
+		cfgbin, err := os.ReadFile(configFile)
 		if err != nil {
 			panic(err)
 		}
-		if err := srv.Start(); err != nil {
+		var cfg config.Config
+		if err = yaml.Unmarshal(cfgbin, &cfg); err != nil {
 			panic(err)
 		}
+
+		Run(&cfg)
 	},
 }
 
@@ -48,6 +54,12 @@ var configFile string
 var logLevel int
 
 func init() {
+	log.SetFormatter(&easy.Formatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		LogFormat:       "[zero][%time%][%lvl%]: %msg% \n",
+	})
+	log.SetLevel(log.DebugLevel)
+
 	rootCmd.Flags().StringVarP(&configFile, "config", "c", "config.yaml", "config file path")
-	rootCmd.Flags().IntVarP(&logLevel, "log-level", "l", int(log.InfoLevel), "config file path")
+	rootCmd.Flags().IntVarP(&logLevel, "log-level", "l", int(log.DebugLevel), "config file path")
 }

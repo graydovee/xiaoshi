@@ -1,7 +1,7 @@
-package bot
+package aichat_plugin
 
 import (
-	"chatgpt/pkg/chatgpt"
+	"git.graydove.cn/graydove/xiaoshi.git/pkg/chatgpt"
 	"testing"
 	"time"
 )

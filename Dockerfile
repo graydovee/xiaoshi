@@ -1,7 +1,11 @@
-FROM golang:1.21 as builder
+FROM golang:1.22-bullseye as builder
 
-WORKDIR /source
-ENV CGO_ENABLED=0
+WORKDIR /source/xiaoshi
+ENV CGO_ENABLED=1
+
+RUN apt-get update && apt-get install -y gcc sqlite3 libsqlite3-dev
+
+RUN git clone https://github.com/FloatTech/ZeroBot-Plugin.git /source/ZeroBot-Plugin
 
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -9,13 +13,19 @@ COPY go.sum go.sum
 RUN go env -w GOPROXY='https://goproxy.cn,direct'
 RUN go mod download
 
+
 COPY cmd/ cmd/
 COPY pkg/ pkg/
 COPY main.go main.go
 
-RUN CGO_ENABLED=0 go build -o /bin/qqbot main.go
+RUN go build -o /bin/qqbot main.go
 
-FROM alpine:3.16
-WORKDIR /bin
+FROM debian:bullseye-slim
+WORKDIR /usr/qqbot
+
+RUN apt-get update && \
+    apt-get install -y ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /bin/qqbot .
-ENTRYPOINT ["/bin/sh"]
+ENTRYPOINT ["./qqbot"]

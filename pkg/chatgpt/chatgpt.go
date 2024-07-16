@@ -2,9 +2,9 @@ package chatgpt
 
 import (
 	"bytes"
-	"chatgpt/pkg/config"
 	"encoding/json"
 	"fmt"
+	"git.graydove.cn/graydove/xiaoshi.git/pkg/config"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"io"

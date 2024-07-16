@@ -12,17 +12,17 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const (
-	urlChat     = "https://api.openai.com/v1/chat/completions"
-	urlImageGen = "https://api.openai.com/v1/images/generations"
-
-	model3d50301 = "gpt-3.5-turbo-0301"
-	model3d5     = "gpt-3.5-turbo"
+	defaultApiUrl = "https://api.openai.com"
+	uriChat       = "/v1/chat/completions"
+	uriImageGen   = "/v1/images/generations"
 )
 
 type ChatBot interface {
+	SetModel(mode string)
 	GetResponse(msg []Message) (*ChatResponse, error)
 	GenImage(prompt string) (*GenImageResponse, error)
 }
@@ -32,14 +32,32 @@ var _ ChatBot = &ChatGPT{}
 type ChatGPT struct {
 	apiKey   string
 	imageDir string
+	apiUrl   string
+	model    string
 	client   *http.Client
 }
 
+func (c *ChatGPT) SetModel(mode string) {
+	c.model = mode
+}
+
+func (c *ChatGPT) buildUrl(uri string) string {
+	return fmt.Sprintf("%s/%s", strings.TrimSuffix(c.apiUrl, "/"), strings.TrimPrefix(uri, "/"))
+}
+
 func NewChatGPT(gpt *config.ChatGPT) *ChatGPT {
+	var u string
+	if gpt.ApiUrl == "" {
+		u = defaultApiUrl
+	} else {
+		u = gpt.ApiUrl
+	}
 	// 创建 Client 对象，并使用 Transport 对象
 	return &ChatGPT{
 		apiKey:   gpt.ApiKey,
 		imageDir: gpt.ImageDir,
+		model:    gpt.Model,
+		apiUrl:   u,
 		client: &http.Client{
 			Transport: GetTransport(),
 		},
@@ -68,14 +86,14 @@ func GetTransport() *http.Transport {
 func (c *ChatGPT) GetResponse(msg []Message) (*ChatResponse, error) {
 	log.Debugf("answer for: %v", msg)
 	request := &ChatRequestBody{
-		Model:     model3d5,
+		Model:     c.model,
 		Messages:  msg,
 		N:         1,
 		MaxTokens: 256,
 	}
 
 	var response ChatResponse
-	if err := c.post(urlChat, request, &response); err != nil {
+	if err := c.post(c.buildUrl(uriChat), request, &response); err != nil {
 		return nil, err
 	}
 	return &response, nil
@@ -90,7 +108,7 @@ func (c *ChatGPT) GenImage(prompt string) (*GenImageResponse, error) {
 	}
 
 	var response GenImageResponse
-	if err := c.post(urlImageGen, request, &response); err != nil {
+	if err := c.post(c.buildUrl(uriImageGen), request, &response); err != nil {
 		return nil, err
 	}
 
@@ -170,6 +188,9 @@ func (c *ChatGPT) post(url string, body any, response any) error {
 }
 
 type RepeatedBot struct {
+}
+
+func (r RepeatedBot) SetModel(mode string) {
 }
 
 func (r RepeatedBot) GenImage(prompt string) (*GenImageResponse, error) {

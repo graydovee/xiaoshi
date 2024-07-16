@@ -8,6 +8,7 @@ import (
 type History interface {
 	AddHistory(msg Message)
 	GetHistory() []Message
+	SetLimit(limit int)
 	Clear()
 }
 
@@ -59,4 +60,8 @@ func (m *MemoryLimitHistory) GetHistory() []Message {
 		msg = msg[len(msg)-m.limit:]
 	}
 	return msg
+}
+
+func (m *MemoryLimitHistory) SetLimit(limit int) {
+	m.limit = limit
 }

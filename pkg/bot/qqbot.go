@@ -1,66 +1,39 @@
 package bot
 
 import (
-	"bytes"
 	"chatgpt/pkg/chatgpt"
+	"chatgpt/pkg/config"
 	"chatgpt/pkg/util"
 	"context"
 	"fmt"
-	"github.com/dezhishen/onebot-sdk/pkg/api"
-	"github.com/dezhishen/onebot-sdk/pkg/config"
-	"github.com/dezhishen/onebot-sdk/pkg/event"
-	"github.com/dezhishen/onebot-sdk/pkg/model"
-	"github.com/segmentio/asm/base64"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"net/url"
-	"os"
-	"path/filepath"
+	zero "github.com/wdvxdr1123/ZeroBot"
+	"github.com/wdvxdr1123/ZeroBot/driver"
+	"github.com/wdvxdr1123/ZeroBot/extension/shell"
+	"github.com/wdvxdr1123/ZeroBot/message"
+	"strconv"
 	"strings"
 	"time"
 )
-
-//var _ Bot = &QQBot{}
 
 type QQBot struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	cfgFile string
-	cfg     *config.OnebotConfig
-
-	ApiClient   *api.OnebotApiClient
-	EventClient *event.OnebotEventClient
-
 	group   util.Map[int64, *chatgpt.ChatSession]
 	private util.Map[int64, *chatgpt.ChatSession]
 	id      string
 
+	cfg *config.Config
 	gpt *chatgpt.ChatGPT
 }
 
-func NewQQBot(cfgFile string, id string, gpt *chatgpt.ChatGPT) (*QQBot, error) {
+func NewQQBot(cfg *config.Config, gpt *chatgpt.ChatGPT) (*QQBot, error) {
 	b := &QQBot{
-		cfgFile: cfgFile,
-		id:      id,
-		gpt:     gpt,
+		cfg: cfg,
+		gpt: gpt,
+		id:  strconv.FormatInt(cfg.QQBot.Id, 10),
 	}
-	conf, err := config.LoadConfig(b.cfgFile)
-	if err != nil {
-		return nil, err
-	}
-	b.cfg = conf
-	b.ApiClient, err = api.NewOnebotApiClient(b.cfg.Api)
-	if err != nil {
-		return nil, err
-	}
-	b.EventClient, err = event.NewOnebotEventCli(b.cfg.Event)
-	if err != nil {
-		return nil, err
-	}
-
-	b.EventClient.ListenMessageGroup(b.onGroupMsg)
-	b.EventClient.ListenMessagePrivate(b.onPrivateMsg)
 	return b, nil
 }
 
@@ -68,257 +41,79 @@ func (s *QQBot) Start() error {
 	if s.ctx != nil {
 		return nil
 	}
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-	return s.startListen()
+	var drivers []zero.Driver
+	if s.cfg.QQBot.Ws != nil {
+		wsUrl := fmt.Sprintf("ws://%s:%d", strings.TrimPrefix(s.cfg.QQBot.Ws.Addr, "ws://"), s.cfg.QQBot.Ws.Port)
+		drivers = append(drivers, driver.NewWebSocketClient(wsUrl, s.cfg.QQBot.Ws.Token))
+	}
+
+	s.registerHandler()
+	zero.RunAndBlock(&zero.Config{
+		NickName:      s.cfg.QQBot.Zero.NickNames,
+		CommandPrefix: "/",
+		SuperUsers:    s.cfg.QQBot.Zero.SuperUsers,
+		Driver:        drivers,
+	}, nil)
+	return nil
 }
 
-func (s *QQBot) startListen() error {
-	s.EventClient.ListenRequestFriend(func(data model.EventRequestFriend) error {
-		// friend add
-		accept := strings.Contains(strings.ToLower(data.Comment), "chatgpt")
-		return s.ApiClient.SetFriendAddRequest(data.Flag, accept, "")
-	})
+func (s *QQBot) registerHandler() {
+	zero.OnCommand("config").Handle(s.onCommand).SetBlock(true)
+	zero.OnMessage(zero.OnlyToMe).Handle(s.onMessage).SecondPriority()
+}
 
-	if err := s.EventClient.StartListenWithCtx(s.ctx); err != nil {
-		return err
+func (s *QQBot) getSession(ctx *zero.Ctx) *chatgpt.ChatSession {
+	if ctx.Event.GroupID != 0 {
+		session, _ := s.group.LoadOrStore(ctx.Event.GroupID, func() *chatgpt.ChatSession {
+			c := chatgpt.NewChat(s.gpt, chatgpt.NewMemoryLimitHistory(s.cfg.ChatGpt.Session.ExpireSeconds, time.Second*time.Duration(s.cfg.ChatGpt.Session.ExpireSeconds)))
+			c.SetPrompt(chatgpt.DefaultPrompt)
+			return c
+		})
+		return session
+	} else if ctx.Event.UserID != 0 {
+		session, _ := s.private.LoadOrStore(ctx.Event.UserID, func() *chatgpt.ChatSession {
+			c := chatgpt.NewChat(s.gpt, chatgpt.NewMemoryLimitHistory(-1, time.Second*time.Duration(s.cfg.ChatGpt.Session.ExpireSeconds)))
+			c.SetPrompt(chatgpt.DefaultPrompt)
+			return c
+		})
+		return session
 	}
 	return nil
 }
 
-func (s *QQBot) SendGroupMsg(groupId int64, msgs ...*model.MessageSegment) error {
-	msg := &model.GroupMsg{
-		GroupId: groupId,
-		Message: msgs,
+func (s *QQBot) onMessage(ctx *zero.Ctx) {
+	text := ctx.Event.Message.ExtractPlainText()
+	if text == "" {
+		return
 	}
-	result, err := s.ApiClient.SendGroupMsg(msg)
+	chatSession := s.getSession(ctx)
+	if chatSession == nil {
+		log.Error("chat session is nil")
+		return
+	}
+
+	// chat response
+	response, err := chatSession.GetResponse(text)
 	if err != nil {
-		return err
+		log.Error("gen response error: ", err)
+		return
 	}
-	if result.Retcode != 200 && result.Retcode != 0 {
-		return fmt.Errorf("send group message error, code: %d, msg: %s", result.Retcode, result.Msg)
-	}
-	return nil
+	ctx.Send(response)
+	return
 }
 
-func (s *QQBot) SendPrivateMsg(userId int64, msgs ...*model.MessageSegment) error {
-	msg := &model.PrivateMsg{
-		UserId:  userId,
-		Message: msgs,
+func (s *QQBot) onCommand(ctx *zero.Ctx) {
+	chatSession := s.getSession(ctx)
+	if chatSession == nil {
+		log.Error("chat session is nil")
+		return
 	}
-	result, err := s.ApiClient.SendPrivateMsg(msg)
+
+	arguments := shell.Parse(ctx.State["args"].(string))
+	out, err := RunCmd(BuildCommand(chatSession), arguments)
 	if err != nil {
-		return err
-	}
-	if result.Retcode != 200 && result.Retcode != 0 {
-		return fmt.Errorf("send group message error, code: %d, msg: %s", result.Retcode, result.Msg)
-	}
-	return nil
-}
-
-func (s *QQBot) onGroupMsg(msg model.EventMessageGroup) error {
-	log.Info("receive group msg: ", msg)
-	if len(msg.Message) != 2 {
-		return nil
-	}
-	msgs := msg.Message
-	if msgs[0].Type != model.CQTypeAt && msgs[1].Type != model.CQTypeText {
-		return nil
-	}
-	at, ok := msgs[0].Data.(*model.MessageElementAt)
-	if !ok {
-		log.Infof("at type error: %T", msgs[0].Data)
-		return nil
-	}
-	text, ok := msgs[1].Data.(*model.MessageElementText)
-	if !ok {
-		log.Infof("message type error: %T", msgs[0].Data)
-		return nil
-	}
-	if at.Qq != s.id {
-		return nil
-	}
-
-	chat, _ := s.group.LoadOrStore(msg.GroupId, func() *chatgpt.ChatSession {
-		c := chatgpt.NewChat(s.gpt, chatgpt.NewMemoryLimitHistory(16, time.Minute*10))
-		c.SetPrompt(chatgpt.DefaultPrompt)
-		return c
-	})
-
-	var response model.MessageSegments
-	var err error
-	if cmd := strings.TrimSpace(text.Text); strings.HasPrefix(cmd, "/") {
-		response = s.onCommand(cmd, chat)
-	} else {
-		response, err = s.chatResponse(text.Text, chat)
-		if err != nil {
-			return err
-		}
-	}
-
-	log.Infof("send group response: %s for %d", response, msg.GroupId)
-	return s.SendGroupMsg(msg.GroupId, response...)
-}
-
-func (s *QQBot) onPrivateMsg(msg model.EventMessagePrivate) error {
-	log.Info("receive private msg: ", msg)
-	if len(msg.Message) < 1 {
-		return nil
-	}
-	m := msg.Message[0]
-	if m.Type != model.CQTypeText {
-		return nil
-	}
-	text, ok := m.Data.(*model.MessageElementText)
-	if !ok {
-		log.Infof("message type error: %T", m.Data)
-		return nil
-	}
-
-	chat, _ := s.private.LoadOrStore(msg.UserId, func() *chatgpt.ChatSession {
-		c := chatgpt.NewChat(s.gpt, chatgpt.NewMemoryLimitHistory(-1, time.Minute*10))
-		c.SetPrompt(chatgpt.DefaultPrompt)
-		return c
-	})
-
-	var response model.MessageSegments
-	var err error
-	if cmd := strings.TrimSpace(text.Text); strings.HasPrefix(cmd, "/") {
-		response = s.onCommand(cmd, chat)
-	} else {
-		response, err = s.chatResponse(text.Text, chat)
-		if err != nil {
-			return err
-		}
-	}
-
-	log.Infof("send private response: %s for %d", response, msg.UserId)
-	return s.SendPrivateMsg(msg.UserId, response...)
-}
-
-func (s *QQBot) chatResponse(text string, chat *chatgpt.ChatSession) (model.MessageSegments, error) {
-	switch {
-	case strings.Contains(text, ":"), strings.Contains(text, "："):
-		// paint response
-		newText := strings.Replace(text, "：", ":", 1)
-		splits := strings.SplitN(newText, ":", 2)
-		if strings.Contains(splits[0], "画") || strings.Contains(splits[0], "draw") {
-			response, err := chat.GetImageResponse(splits[1])
-			if err != nil {
-				return nil, err
-			}
-			var msgs model.MessageSegments
-			for _, resp := range response {
-				file, err := os.ReadFile(resp)
-				if err != nil {
-					return nil, err
-				}
-				var imgUrl url.URL
-				imgUrl.Scheme = "base64"
-				imgUrl.Path = base64.StdEncoding.EncodeToString(file)
-				msgs = append(msgs, &model.MessageSegment{
-					Type: model.CQTypeImage,
-					Data: &model.MessageElementImage{
-						File: filepath.Base(resp),
-						Url:  imgUrl.String(),
-					},
-				})
-			}
-			return msgs, nil
-
-		}
-		fallthrough
-	default:
-		// chat response
-		response, err := chat.GetResponse(text)
-		if err != nil {
-			return nil, err
-		}
-		return model.MessageSegments{
-			{
-				Type: model.CQTypeText,
-				Data: &model.MessageElementText{
-					Text: response,
-				},
-			},
-		}, nil
-	}
-}
-
-func (s *QQBot) onCommand(cmdStr string, chat *chatgpt.ChatSession) model.MessageSegments {
-	out := bytes.NewBuffer(nil)
-
-	root := cobra.Command{
-		Use: "/",
-	}
-	root.SetArgs(splitArgs(cmdStr[1:]))
-	root.SetOut(out)
-	list := &cobra.Command{
-		Use:   "role [role]",
-		Short: "切换至预设角色",
-		Long: func() string {
-			roleList := bytes.NewBuffer(nil)
-			p := util.NewPrinter(roleList)
-			p.Println("切换至预设角色\n")
-			p.Println("预设角色列表：")
-			c := 1
-			for role := range chatgpt.RoleMap {
-				p.Println(c, ". ", role)
-				c++
-			}
-			return roleList.String()
-		}(),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			p := util.NewPrinter(cmd.OutOrStdout())
-			if len(args) == 0 {
-				return fmt.Errorf("角色名为空")
-			}
-			roleDetail, ok := chatgpt.RoleMap[args[0]]
-			if ok {
-				chat.SetPrompt(roleDetail)
-				p.Println("角色切换至：", args[0])
-			} else {
-				p.Printf("角色: %s 不存在\n", args[0])
-			}
-			return nil
-		},
-	}
-	root.AddCommand(list)
-	prompt := &cobra.Command{
-		Use:   "prompt [detail]",
-		Short: "手动设定人格",
-		Long:  "手动设定人格",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			p := util.NewPrinter(cmd.OutOrStdout())
-			if len(args) == 0 {
-				return fmt.Errorf("设定为空")
-			}
-			chat.SetPrompt(strings.Join(args, " "))
-			p.Println("设定角色完成")
-			return nil
-		},
-	}
-	root.AddCommand(prompt)
-	if err := root.Execute(); err != nil {
 		log.Error("execute sub command error: ", err)
+		return
 	}
-
-	return model.MessageSegments{
-		{
-			Type: model.CQTypeText,
-			Data: &model.MessageElementText{
-				Text: out.String(),
-			},
-		},
-	}
-}
-
-func splitArgs(s string) []string {
-	var args []string
-	for _, argRaw := range strings.Split(strings.TrimSpace(s), " ") {
-		arg := strings.TrimSpace(argRaw)
-		if arg != "" {
-			args = append(args, arg)
-		}
-	}
-	return args
+	ctx.Send(message.Text(out))
 }

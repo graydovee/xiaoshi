@@ -55,6 +55,10 @@ func (c *ChatSession) SetPrompt(prompts ...string) {
 	c.prompt = promptMessage
 }
 
+func (c *ChatSession) ChatBot() ChatBot {
+	return c.chatBot
+}
+
 func (c *ChatSession) GetResponse(question string) (string, error) {
 	history := c.history.GetHistory()
 	msg := Message{

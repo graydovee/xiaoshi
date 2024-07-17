@@ -2,6 +2,7 @@ package aichat_plugin
 
 import (
 	"context"
+	"fmt"
 	"git.graydove.cn/graydove/xiaoshi.git/pkg/chatgpt"
 	"git.graydove.cn/graydove/xiaoshi.git/pkg/config"
 	"git.graydove.cn/graydove/xiaoshi.git/pkg/util"
@@ -13,12 +14,6 @@ import (
 	"time"
 )
 
-var aiBot *AIBot
-
-func GetBot() *AIBot {
-	return aiBot
-}
-
 type AIBot struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -29,20 +24,21 @@ type AIBot struct {
 
 	cfg *config.Config
 	gpt *chatgpt.ChatGPT
+
+	prompt *chatgpt.Prompt
 }
 
 func InitAIBot(cfg *config.Config) {
-	Register()
-
 	gpt := chatgpt.NewChatGPT(&cfg.ChatGpt)
 
 	log.Info("qq qqBot init, id: ", cfg.QQBot.Id)
 
-	aiBot = &AIBot{
+	aiBot := &AIBot{
 		cfg: cfg,
 		gpt: gpt,
 		id:  strconv.FormatInt(cfg.QQBot.Id, 10),
 	}
+	Register(aiBot)
 	return
 }
 
@@ -50,14 +46,14 @@ func (s *AIBot) getSession(ctx *zero.Ctx) *chatgpt.ChatSession {
 	if ctx.Event.GroupID != 0 {
 		session, _ := s.group.LoadOrStore(ctx.Event.GroupID, func() *chatgpt.ChatSession {
 			c := chatgpt.NewChat(s.gpt, chatgpt.NewMemoryLimitHistory(s.cfg.ChatGpt.Session.ExpireSeconds, time.Second*time.Duration(s.cfg.ChatGpt.Session.ExpireSeconds)))
-			c.SetPrompt(chatgpt.DefaultPrompt)
+			c.SetPrompt(s.prompt.GetPrompt()...)
 			return c
 		})
 		return session
 	} else if ctx.Event.UserID != 0 {
 		session, _ := s.private.LoadOrStore(ctx.Event.UserID, func() *chatgpt.ChatSession {
 			c := chatgpt.NewChat(s.gpt, chatgpt.NewMemoryLimitHistory(-1, time.Second*time.Duration(s.cfg.ChatGpt.Session.ExpireSeconds)))
-			c.SetPrompt(chatgpt.DefaultPrompt)
+			c.SetPrompt(s.prompt.GetPrompt()...)
 			return c
 		})
 		return session
@@ -76,8 +72,10 @@ func (s *AIBot) OnMessage(ctx *zero.Ctx) {
 		return
 	}
 
+	name := ctx.Event.Sender.Name()
+
 	// chat response
-	response, err := chatSession.GetResponse(text)
+	response, err := chatSession.GetResponse(fmt.Sprintf("%s: %s", name, text))
 	if err != nil {
 		log.Error("gen response error: ", err)
 		return
@@ -94,7 +92,7 @@ func (s *AIBot) OnCommand(ctx *zero.Ctx) {
 	}
 
 	arguments := shell.Parse(ctx.State["args"].(string))
-	out, err := RunCmd(BuildCommand(chatSession), arguments)
+	out, err := RunCmd(s.BuildCommand(chatSession), arguments)
 	if err != nil {
 		log.Error("execute sub command error: ", err)
 		return

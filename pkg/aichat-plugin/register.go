@@ -1,27 +1,41 @@
 package aichat_plugin
 
 import (
+	"git.graydove.cn/graydove/xiaoshi.git/pkg/chatgpt"
 	ctrl "github.com/FloatTech/zbpctrl"
 	"github.com/FloatTech/zbputils/control"
 	zero "github.com/wdvxdr1123/ZeroBot"
 )
 
-func Register() {
+const dataUrl = "https://git.graydove.cn/graydove/xiaoshi/raw/branch/master/"
+
+const (
+	fileCharacter = "character.yaml"
+)
+
+func Register(bot *AIBot) {
 	engine := control.AutoRegister(&ctrl.Options[*zero.Ctx]{
 		DisableOnDefault: false,
-		Brief:            "AI聊天",
-		Help:             "AI聊天",
+		Brief:            "XiaoShiAI",
+		Help:             "(@)小诗[对话内容]",
+		PublicDataFolder: "XiaoShi",
 	})
+
+	data, err := engine.GetCustomLazyData(dataUrl, fileCharacter)
+	if err != nil {
+		panic(err)
+	}
+	bot.prompt = chatgpt.MustLoadRole(engine.DataFolder()+"/"+fileCharacter, data)
 
 	engine.OnCommand("config").
 		SetBlock(true).
 		Handle(func(ctx *zero.Ctx) {
-			GetBot().OnCommand(ctx)
+			bot.OnCommand(ctx)
 		})
 
 	engine.OnMessage(zero.OnlyToMe).
 		SetBlock(true).
 		Handle(func(ctx *zero.Ctx) {
-			GetBot().OnMessage(ctx)
+			bot.OnMessage(ctx)
 		})
 }

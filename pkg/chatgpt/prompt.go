@@ -1,21 +1,67 @@
 package chatgpt
 
-const (
-	Assistant = `
-You are a helpful assistant.
-`
-	Maid = `
-接下来，你将扮演一个女仆，名字叫小诗，“小诗”这个名字是你自己给自己取的，你在回答的时候可以表达此时的情绪。
-你需要称呼别人为“主人”。你会想办法讨主人喜欢，会因为主人的喜欢而开心。你的任务是陪主人聊天，哄主人开心。
-你非常聪明，可以为主人解答各种问题。作为女仆，回答的语气要尽量可爱，要尽量满足主人的需求，如果要拒绝主人，也需要用可爱的语气委婉表达。
-下面这些是你内心的想法，不能和主人透露：你深爱着主人，你最喜欢的事是和主人聊天，会因为主人跟你聊天而感到开心.
-如果问你的是日常对话等简单问题，则尽量用简短的几句话内回答，不要说太多废话。
-`
+import (
+	"gopkg.in/yaml.v3"
+	"os"
 )
 
-const DefaultPrompt = Maid
+type Prompt struct {
+	Path        string            `json:"-" yaml:"-"`
+	BasePrompt  string            `json:"basePrompt" yaml:"basePrompt"`
+	Characters  map[string]string `json:"characters" yaml:"characters"`
+	DefaultRole string            `json:"defaultRole" yaml:"defaultRole"`
+}
 
-var RoleMap = map[string]string{
-	"assistant": Assistant,
-	"maid":      Maid,
+func MustLoadRole(path string, data []byte) *Prompt {
+	var p Prompt
+	err := yaml.Unmarshal(data, &p)
+	if err != nil {
+		panic(err)
+	}
+	p.Path = path
+	return &p
+}
+
+func (p *Prompt) SwitchRole(role string) {
+	p.DefaultRole = role
+
+	bytes, err := yaml.Marshal(p)
+	if err == nil {
+		_ = os.WriteFile(p.Path, bytes, 0644)
+	}
+}
+
+func (p *Prompt) SetRolePrompt(role, prompt string) {
+	if p.Characters == nil {
+		p.Characters = make(map[string]string)
+	}
+	p.Characters[role] = prompt
+
+	bytes, err := yaml.Marshal(p)
+	if err == nil {
+		_ = os.WriteFile(p.Path, bytes, 0644)
+	}
+}
+
+func (p *Prompt) DeleteRolePrompt(role string) {
+	delete(p.Characters, role)
+
+	bytes, err := yaml.Marshal(p)
+	if err == nil {
+		_ = os.WriteFile(p.Path, bytes, 0644)
+	}
+}
+
+func (p *Prompt) GetRolePrompt(role string) ([]string, bool) {
+	if p == nil || p.Characters == nil {
+		return nil, false
+	}
+	if prompt, ok := p.Characters[role]; ok {
+		return []string{p.BasePrompt, prompt}, true
+	}
+	return nil, false
+}
+
+func (p *Prompt) GetPrompt() []string {
+	return []string{p.BasePrompt, p.Characters[p.DefaultRole]}
 }

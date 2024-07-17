@@ -11,15 +11,15 @@ import (
 	"strings"
 )
 
-type CommandFactory func(chatSession *chatgpt.ChatSession, root *cobra.Command)
+type CommandFactory func(bot *AIBot, chatSession *chatgpt.ChatSession, root *cobra.Command)
 
-func BuildCommand(chatSession *chatgpt.ChatSession) *cobra.Command {
+func (s *AIBot) BuildCommand(chatSession *chatgpt.ChatSession) *cobra.Command {
 	root := cobra.Command{}
 	for _, cmdFactory := range []CommandFactory{
 		CharacterCommand,
 		ChatCommand,
 	} {
-		cmdFactory(chatSession, &root)
+		cmdFactory(s, chatSession, &root)
 	}
 	return &root
 }
@@ -36,7 +36,7 @@ func RunCmd(command *cobra.Command, arguments []string) (string, error) {
 	return out.String(), nil
 }
 
-func CharacterCommand(chatSession *chatgpt.ChatSession, root *cobra.Command) {
+func CharacterCommand(bot *AIBot, chatSession *chatgpt.ChatSession, root *cobra.Command) {
 	characterCmd := &cobra.Command{
 		Use: "character [subCommand]",
 	}
@@ -48,7 +48,7 @@ func CharacterCommand(chatSession *chatgpt.ChatSession, root *cobra.Command) {
 			p := util.NewPrinter(cmd.OutOrStdout())
 			p.Println("预设人格列表：")
 			c := 1
-			for role := range chatgpt.RoleMap {
+			for role := range bot.prompt.Characters {
 				p.Println(c, ". ", role)
 				c++
 			}
@@ -64,9 +64,9 @@ func CharacterCommand(chatSession *chatgpt.ChatSession, root *cobra.Command) {
 			if len(args) == 0 {
 				return fmt.Errorf("角色名为空")
 			}
-			roleDetail, ok := chatgpt.RoleMap[args[0]]
+			rolePrompts, ok := bot.prompt.GetRolePrompt(args[0])
 			if ok {
-				chatSession.SetPrompt(roleDetail)
+				chatSession.SetPrompt(rolePrompts...)
 				p.Println("角色切换至：", args[0])
 			} else {
 				p.Printf("角色: %s 不存在\n", args[0])
@@ -85,9 +85,8 @@ func CharacterCommand(chatSession *chatgpt.ChatSession, root *cobra.Command) {
 			}
 			roleName := args[0]
 			roleDetail := strings.Join(args[1:], "\n")
-			chatgpt.RoleMap[roleName] = roleDetail
-			chatSession.SetPrompt(roleDetail)
-			p.Println("设定人格完成")
+			bot.prompt.SetRolePrompt(roleName, roleDetail)
+			p.Println("新增人格完成")
 			return nil
 		},
 	})
@@ -101,7 +100,7 @@ func CharacterCommand(chatSession *chatgpt.ChatSession, root *cobra.Command) {
 				return fmt.Errorf("设定为空")
 			}
 			roleName := args[0]
-			delete(chatgpt.RoleMap, roleName)
+			bot.prompt.DeleteRolePrompt(roleName)
 			p.Println("删除角色完成")
 			return nil
 		},
@@ -110,7 +109,7 @@ func CharacterCommand(chatSession *chatgpt.ChatSession, root *cobra.Command) {
 	root.AddCommand(characterCmd)
 }
 
-func ChatCommand(chatSession *chatgpt.ChatSession, root *cobra.Command) {
+func ChatCommand(bot *AIBot, chatSession *chatgpt.ChatSession, root *cobra.Command) {
 	chatCmd := cobra.Command{
 		Use: "chat [subCommand]",
 	}

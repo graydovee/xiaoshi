@@ -1,5 +1,5 @@
 REPO=graydovee/qqbot
-TAG=v0.0.10
+TAG=v0.0.12
 IMG=$(REPO):$(TAG)
 
 .Phony: build-linux

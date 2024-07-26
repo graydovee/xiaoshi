@@ -39,6 +39,9 @@ func NewMemoryLimitHistory(limit int, timeout time.Duration) *MemoryLimitHistory
 func (m *MemoryLimitHistory) AddHistory(msg Message) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	m.cleanExpired()
+
 	m.history = append(m.history, historyMessage{
 		msg:     msg,
 		created: time.Now(),
@@ -48,20 +51,34 @@ func (m *MemoryLimitHistory) AddHistory(msg Message) {
 func (m *MemoryLimitHistory) GetHistory() []Message {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	var msg []Message
-	deadLine := time.Now().Add(-m.timeout)
+
+	m.cleanExpired()
+
+	var validHistory []Message
 	for _, hmsg := range m.history {
-		if hmsg.created.Before(deadLine) {
-			continue
-		}
-		msg = append(msg, hmsg.msg)
+		validHistory = append(validHistory, hmsg.msg)
 	}
-	if m.limit >= 0 && len(msg) > m.limit {
-		msg = msg[len(msg)-m.limit:]
-	}
-	return msg
+	return validHistory
 }
 
 func (m *MemoryLimitHistory) SetLimit(limit int) {
 	m.limit = limit
+}
+
+func (m *MemoryLimitHistory) cleanExpired() {
+	if m.timeout == 0 {
+		return
+	}
+	deadLine := time.Now().Add(-m.timeout)
+
+	for i, hmsg := range m.history {
+		if hmsg.created.After(deadLine) {
+			m.history = m.history[i:]
+			break
+		}
+	}
+
+	if m.limit >= 0 && len(m.history) > m.limit {
+		m.history = m.history[len(m.history)-m.limit:]
+	}
 }

@@ -27,15 +27,15 @@ func Register(bot *AIBot) {
 	}
 	bot.prompt = chatgpt.MustLoadRole(engine.DataFolder()+"/"+fileCharacter, data)
 
-	engine.OnCommand("config").
-		SetBlock(true).
-		Handle(func(ctx *zero.Ctx) {
-			bot.OnCommand(ctx)
-		})
-
 	engine.OnMessage(zero.OnlyToMe).
 		SetBlock(true).
 		Handle(func(ctx *zero.Ctx) {
 			bot.OnMessage(ctx)
+		})
+
+	engine.OnCommand("config").
+		SetBlock(true).
+		Handle(func(ctx *zero.Ctx) {
+			bot.OnCommand(ctx)
 		})
 }

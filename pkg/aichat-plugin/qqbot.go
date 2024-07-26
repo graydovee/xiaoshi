@@ -45,7 +45,7 @@ func InitAIBot(cfg *config.Config) {
 func (s *AIBot) getSession(ctx *zero.Ctx) *chatgpt.ChatSession {
 	if ctx.Event.GroupID != 0 {
 		session, _ := s.group.LoadOrStore(ctx.Event.GroupID, func() *chatgpt.ChatSession {
-			c := chatgpt.NewChat(s.gpt, chatgpt.NewMemoryLimitHistory(s.cfg.ChatGpt.Session.ExpireSeconds, time.Second*time.Duration(s.cfg.ChatGpt.Session.ExpireSeconds)))
+			c := chatgpt.NewChat(s.gpt, chatgpt.NewMemoryLimitHistory(s.cfg.ChatGpt.Session.MessageLimit, time.Second*time.Duration(s.cfg.ChatGpt.Session.ExpireSeconds)))
 			c.SetPrompt(s.prompt.GetPrompt()...)
 			return c
 		})

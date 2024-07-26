@@ -18,7 +18,7 @@ COPY cmd/ cmd/
 COPY pkg/ pkg/
 COPY main.go main.go
 
-RUN go build -o /bin/qqbot main.go
+RUN go build -o /bin/xiaoshi main.go
 
 FROM debian:bullseye-slim
 WORKDIR /usr/qqbot
@@ -27,5 +27,5 @@ RUN apt-get update && \
     apt-get install -y ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /bin/qqbot .
-ENTRYPOINT ["./qqbot"]
+COPY --from=builder /bin/xiaoshi .
+ENTRYPOINT ["./xiaoshi"]

@@ -86,10 +86,9 @@ func GetTransport() *http.Transport {
 func (c *ChatGPT) GetResponse(msg []Message) (*ChatResponse, error) {
 	log.Debugf("answer for: %v", msg)
 	request := &ChatRequestBody{
-		Model:     c.model,
-		Messages:  msg,
-		N:         1,
-		MaxTokens: 256,
+		Model:    c.model,
+		Messages: msg,
+		Stream:   false,
 	}
 
 	var response ChatResponse

@@ -9,10 +9,11 @@ const (
 type ChatRequestBody struct {
 	Model       string    `json:"model"`
 	Messages    []Message `json:"messages"`
-	MaxTokens   int       `json:"max_tokens"`
-	Temperature float64   `json:"temperature"`
-	N           int       `json:"n"`
-	Stop        string    `json:"stop"`
+	MaxTokens   int       `json:"max_tokens,omitempty"`
+	Temperature float64   `json:"temperature,omitempty"`
+	N           int       `json:"n,omitempty"`
+	Stop        string    `json:"stop,omitempty"`
+	Stream      bool      `json:"stream"`
 }
 
 type Message struct {

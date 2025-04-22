@@ -1,5 +1,5 @@
 REPO=graydovee/xiaoshi
-TAG=v0.0.12
+TAG=v0.0.13
 IMG=$(REPO):$(TAG)
 
 .Phony: build-linux

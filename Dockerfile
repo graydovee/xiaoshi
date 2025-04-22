@@ -5,7 +5,7 @@ ENV CGO_ENABLED=1
 
 RUN apt-get update && apt-get install -y gcc sqlite3 libsqlite3-dev
 
-RUN git clone https://github.com/FloatTech/ZeroBot-Plugin.git /source/ZeroBot-Plugin
+RUN git clone https://github.com/graydovee/ZeroBot-Plugin.git /source/ZeroBot-Plugin
 
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -17,6 +17,8 @@ RUN go mod download
 COPY cmd/ cmd/
 COPY pkg/ pkg/
 COPY main.go main.go
+
+RUN go mod tidy
 
 RUN go build -o /bin/xiaoshi main.go
 

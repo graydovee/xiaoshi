@@ -6,7 +6,7 @@
 
 ## 功能特性
 - **OneBot协议支持**：可无缝对接QQ等IM平台，实现群聊/私聊AI对话。
-- **大模型驱动**：支持任意兼容OpenAI协议并支持Function Call的大模型，具备丰富的自然语言理解与生成能力（经测试，DeepSeekV3在有较长System Prompt的情况下Function Call能力较差）。
+- **大模型驱动**：支持任意兼容OpenAI协议并支持Function Call的大模型，具备丰富的自然语言理解与生成能力（经测试，DeepSeekV3在有较长System Prompt的情况下Function Call能力较差，建议使用openAI模型）。
 - **上下文记忆**：可配置记忆长度与时效，支持多会话上下文管理。
 - **MCP插件扩展**：通过MCP协议可动态加载第三方插件（如B站搜索、终端指令等），让AI能力无限拓展。
 - **高度可定制**：支持自定义角色设定、系统提示词、模型参数等。

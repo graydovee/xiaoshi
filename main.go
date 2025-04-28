@@ -1,9 +1,6 @@
-/*
-Copyright © 2023 NAME HERE <EMAIL ADDRESS>
-*/
 package main
 
-import "git.graydove.cn/graydove/xiaoshi.git/cmd"
+import "github.com/graydovee/xiaoshi/cmd"
 
 func main() {
 	cmd.Execute()

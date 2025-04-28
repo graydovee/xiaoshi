@@ -1,7 +1,15 @@
 .idea
+.vscode
 configs
 bin
 logs
 start.sh
 
+.DS_Store
+
 data
+debug
+
+mcp-server
+
+config.yaml

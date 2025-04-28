@@ -1,29 +1,51 @@
-package chatgpt
+package mcp
 
 import (
+	"github.com/openai/openai-go"
 	"sync"
 	"time"
 )
 
 type History interface {
-	AddHistory(msg Message)
-	GetHistory() []Message
+	GetSystemPrompt() *openai.ChatCompletionMessageParamUnion
+	SetSystemPrompt(msg string)
+	AddHistory(msg openai.ChatCompletionMessageParamUnion)
+	GetHistory() []openai.ChatCompletionMessageParamUnion
 	SetLimit(limit int)
 	Clear()
 }
 
+var _ History = &MemoryLimitHistory{}
+
 type historyMessage struct {
-	msg     Message
+	msg     openai.ChatCompletionMessageParamUnion
 	created time.Time
 }
 
 type MemoryLimitHistory struct {
 	mu sync.Mutex
 
+	systemMsg *openai.ChatCompletionMessageParamUnion
+
 	history []historyMessage
 
 	limit   int
 	timeout time.Duration
+}
+
+func (m *MemoryLimitHistory) GetSystemPrompt() *openai.ChatCompletionMessageParamUnion {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.systemMsg
+}
+
+func (m *MemoryLimitHistory) SetSystemPrompt(msg string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	sysMsg := openai.AssistantMessage(msg)
+	m.systemMsg = &sysMsg
 }
 
 func (m *MemoryLimitHistory) Clear() {
@@ -36,7 +58,7 @@ func NewMemoryLimitHistory(limit int, timeout time.Duration) *MemoryLimitHistory
 	return &MemoryLimitHistory{limit: limit, timeout: timeout}
 }
 
-func (m *MemoryLimitHistory) AddHistory(msg Message) {
+func (m *MemoryLimitHistory) AddHistory(msg openai.ChatCompletionMessageParamUnion) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -48,13 +70,16 @@ func (m *MemoryLimitHistory) AddHistory(msg Message) {
 	})
 }
 
-func (m *MemoryLimitHistory) GetHistory() []Message {
+func (m *MemoryLimitHistory) GetHistory() []openai.ChatCompletionMessageParamUnion {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.cleanExpired()
 
-	var validHistory []Message
+	var validHistory []openai.ChatCompletionMessageParamUnion
+	if m.systemMsg != nil {
+		validHistory = append(validHistory, *m.systemMsg)
+	}
 	for _, hmsg := range m.history {
 		validHistory = append(validHistory, hmsg.msg)
 	}

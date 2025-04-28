@@ -1,10 +1,11 @@
 REPO=graydovee/xiaoshi
-TAG=v0.0.13
+TAG=v0.1.3
 IMG=$(REPO):$(TAG)
+MCP_DIR=mcp-server
 
-.Phony: build-linux
-build-linux:
-	GOOS=linux GOARCH=arm64 go build -o bin/xiaoshi main.go
+.Phony: build
+build: mcp-server
+	go build -o bin/xiaoshi main.go
 
 .Phony: docker-build
 docker-build:
@@ -14,3 +15,10 @@ docker-build:
 docker-push:
 	docker push $(IMG)
 	docker push $(REPO):latest
+
+.Phony: mcp-server
+mcp-server: mcpserver-terminal
+
+.Phony: mcpserver-terminal
+mcpserver-terminal:
+	go build -o ${MCP_DIR}/terminal mcpserver/terminal/main.go

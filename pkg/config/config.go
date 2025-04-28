@@ -1,34 +1,34 @@
 package config
 
 type Config struct {
-	ChatGpt ChatGPT `json:"chatGpt" yaml:"chatGpt"`
-	QQBot   QQBot   `json:"qqBot" yaml:"qqBot"`
+	Memory  MemoryConfig  `json:"memory" yaml:"memory"`
+	OneBot  OneBotConfig  `json:"oneBot" yaml:"oneBot"`
+	MCP     MCPConfig     `json:"mcp" yaml:"mcp"`
+	Healthz HealthzConfig `json:"healthz" yaml:"healthz"`
 }
 
-type ChatGPT struct {
-	ApiKey   string      `json:"apiKey" yaml:"apiKey"`
-	ImageDir string      `json:"imageDir" yaml:"imageDir"`
-	ApiUrl   string      `json:"apiUrl" yaml:"apiUrl"`
-	Model    string      `json:"model" yaml:"model"`
-	Session  ChatSession `json:"session" yaml:"session"`
+type HealthzConfig struct {
+	Enabled bool   `json:"enabled" yaml:"enabled"`
+	Addr    string `json:"addr" yaml:"addr"`
+	Port    int    `json:"port" yaml:"port"`
+	Pattern string `json:"pattern" yaml:"pattern"`
 }
 
-type ChatSession struct {
+type MemoryConfig struct {
 	MessageLimit  int `json:"messageLimit" yaml:"messageLimit"`
 	ExpireSeconds int `json:"expireSeconds" yaml:"expireSeconds"`
 }
 
-type QQBot struct {
-	Id     int64      `json:"id" yaml:"id"`
-	Ws     *WebSocket `json:"ws,omitempty" yaml:"ws,omitempty"`
-	Zero   ZeroConfig `json:"zero" yaml:"zero"`
-	WebGui WebGui     `json:"webGui" yaml:"webGui"`
+type OneBotConfig struct {
+	Id    int64        `json:"id" yaml:"id"`
+	Ws    *WebSocket   `json:"ws,omitempty" yaml:"ws,omitempty"`
+	Limit *LimitConfig `json:"limit,omitempty" yaml:"limit,omitempty"`
 }
 
-type ZeroConfig struct {
-	SuperUsers    []int64  `json:"superUsers" yaml:"superUsers"`
-	NickNames     []string `json:"nickNames" yaml:"nickNames"`
-	CommandPrefix string   `json:"commandPrefix" yaml:"commandPrefix"`
+type LimitConfig struct {
+	Enabled   bool    `json:"enabled" yaml:"enabled"`
+	Frequency float64 `json:"frequency" yaml:"frequency"`
+	Bucket    int     `json:"bucket" yaml:"bucket"`
 }
 
 type WebSocket struct {
@@ -37,7 +37,25 @@ type WebSocket struct {
 	Token string `json:"token" yaml:"token"`
 }
 
-type WebGui struct {
-	Host string `json:"host" yaml:"host"`
-	Port int    `json:"port" yaml:"port"`
+type MCPConfig struct {
+	SystemPrompt string               `json:"systemPrompt" yaml:"systemPrompt"`
+	LLM          LLM                  `json:"llm" yaml:"llm"`
+	McpServers   map[string]MCPServer `json:"mcpServers" yaml:"mcpServers"`
+}
+
+type MCPServer struct {
+	Command string            `json:"command" yaml:"command"`
+	Args    []string          `json:"args" yaml:"args"`
+	Env     map[string]string `json:"env" yaml:"env"`
+
+	Url    string            `json:"url" yaml:"url"`
+	Header map[string]string `json:"header" yaml:"header"`
+
+	Disabled bool `json:"disabled" yaml:"disabled"`
+}
+
+type LLM struct {
+	BaseURL string `json:"baseUrl" yaml:"baseUrl"`
+	ApiKey  string `json:"apiKey" yaml:"apiKey"`
+	Model   string `json:"model" yaml:"model"`
 }

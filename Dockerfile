@@ -1,33 +1,31 @@
-FROM golang:1.22-bullseye as builder
+FROM golang:1.23 as builder
 
-WORKDIR /source/xiaoshi
-ENV CGO_ENABLED=1
+WORKDIR /app
+ENV CGO_ENABLED=0
 
-RUN apt-get update && apt-get install -y gcc sqlite3 libsqlite3-dev
-
-RUN git clone https://github.com/graydovee/ZeroBot-Plugin.git /source/ZeroBot-Plugin
+RUN go env -w GOPROXY='https://goproxy.cn,direct'
 
 COPY go.mod go.mod
 COPY go.sum go.sum
-
-RUN go env -w GOPROXY='https://goproxy.cn,direct'
 RUN go mod download
 
+COPY . .
+RUN make build
 
-COPY cmd/ cmd/
-COPY pkg/ pkg/
-COPY main.go main.go
+FROM ubuntu:22.04
+WORKDIR /app/xiaoshi
 
-RUN go mod tidy
+RUN apt-get update
 
-RUN go build -o /bin/xiaoshi main.go
+# base environment
+RUN apt-get install -y curl build-essential
 
-FROM debian:bullseye-slim
-WORKDIR /usr/qqbot
+# install python3
+RUN apt-get install -y python3
 
-RUN apt-get update && \
-    apt-get install -y ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# install nodejs
+RUN (curl -fsSL https://deb.nodesource.com/setup_22.x | bash -) && apt-get install -y nodejs
 
-COPY --from=builder /bin/xiaoshi .
+COPY --from=builder /app/bin/xiaoshi .
+COPY --from=builder /app/mcp-server ./mcp-server
 ENTRYPOINT ["./xiaoshi"]

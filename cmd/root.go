@@ -1,14 +1,9 @@
-/*
-Copyright © 2023 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
-	"git.graydove.cn/graydove/xiaoshi.git/pkg/config"
-	log "github.com/sirupsen/logrus"
+	"github.com/graydovee/xiaoshi/pkg/config"
 	"github.com/spf13/cobra"
-	easy "github.com/t-tomalak/logrus-easy-formatter"
-	"gopkg.in/yaml.v3"
+	"log/slog"
 	"os"
 )
 
@@ -25,19 +20,14 @@ to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		log.SetLevel(log.Level(logLevel))
-		log.Info("loading config: ", configFile)
-
-		cfgbin, err := os.ReadFile(configFile)
+		slog.SetLogLoggerLevel(slog.Level(logLevel))
+		cfg, err := config.LoadConfigFromPath()
 		if err != nil {
-			panic(err)
-		}
-		var cfg config.Config
-		if err = yaml.Unmarshal(cfgbin, &cfg); err != nil {
-			panic(err)
+			slog.Error("load config error: ", err)
+			return
 		}
 
-		Run(&cfg)
+		Run(cfg)
 	},
 }
 
@@ -50,16 +40,10 @@ func Execute() {
 	}
 }
 
-var configFile string
 var logLevel int
 
 func init() {
-	log.SetFormatter(&easy.Formatter{
-		TimestampFormat: "2006-01-02 15:04:05",
-		LogFormat:       "[zero][%time%][%lvl%]: %msg% \n",
-	})
-	log.SetLevel(log.DebugLevel)
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 
-	rootCmd.Flags().StringVarP(&configFile, "config", "c", "config.yaml", "config file path")
-	rootCmd.Flags().IntVarP(&logLevel, "log-level", "l", int(log.DebugLevel), "config file path")
+	rootCmd.Flags().IntVarP(&logLevel, "log-level", "l", int(slog.LevelDebug), "config file path")
 }

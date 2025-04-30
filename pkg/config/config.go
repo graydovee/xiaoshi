@@ -48,8 +48,8 @@ type MCPServer struct {
 	Args    []string          `json:"args" yaml:"args"`
 	Env     map[string]string `json:"env" yaml:"env"`
 
-	Url    string            `json:"url" yaml:"url"`
-	Header map[string]string `json:"header" yaml:"header"`
+	Url     string            `json:"url" yaml:"url"`
+	Headers map[string]string `json:"headers" yaml:"headers"`
 
 	Disabled bool `json:"disabled" yaml:"disabled"`
 }

@@ -33,7 +33,7 @@ func NewMcpClient(server config.MCPServer) (*mcpclient.Client, error) {
 			server.Args...,
 		)
 	} else {
-		return mcpclient.NewSSEMCPClient(server.Url, mcpclient.WithHeaders(server.Header))
+		return mcpclient.NewSSEMCPClient(server.Url, mcpclient.WithHeaders(server.Headers))
 	}
 }
 

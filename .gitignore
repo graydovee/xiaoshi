@@ -1,15 +1,3 @@
-.idea
-.vscode
-configs
-bin
-logs
-start.sh
-
-.DS_Store
-
+target
 data
 debug
-
-mcp-server
-
-config.yaml

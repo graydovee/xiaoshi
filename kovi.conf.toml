@@ -1,0 +1,10 @@
+[config]
+main_admin = 1036308853
+admins = []
+debug = false
+
+[server]
+host = "ntqq-api-ws.qaer.cn"
+port = 443
+access_token = "Du616580"
+secure = true

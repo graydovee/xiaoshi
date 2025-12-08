@@ -1974,10 +1974,12 @@ dependencies = [
  "system-configuration",
  "tokio",
  "tokio-native-tls",
+ "tokio-util",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams",
  "web-sys",
  "winreg",
 ]
@@ -3687,7 +3689,9 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-openai",
+ "async-trait",
  "chrono",
+ "futures-util",
  "kovi 0.12.5",
  "log",
  "ndarray",

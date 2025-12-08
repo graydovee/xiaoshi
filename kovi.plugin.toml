@@ -1,0 +1,17 @@
+[kovi-plugin-cmd]
+enable_on_startup = true
+access_control = false
+list_mode = "WhiteList"
+
+[kovi-plugin-cmd.access_list]
+friends = []
+groups = []
+
+[xiaoshi-kovi-plugin]
+enable_on_startup = true
+access_control = false
+list_mode = "WhiteList"
+
+[xiaoshi-kovi-plugin.access_list]
+friends = []
+groups = []

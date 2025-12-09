@@ -1,4 +1,4 @@
-# xiaoshi-kovi-plugin
+# kovi-plugin-xiaoshi
 
 一个基于 [Kovi](https://github.com/Threkork/kovi) 框架的智能聊天机器人插件，具备长短期记忆、RAG 检索增强、MCP 工具调用等能力。
 

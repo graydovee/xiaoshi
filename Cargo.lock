@@ -1313,8 +1313,8 @@ version = "0.1.0"
 dependencies = [
  "kovi 0.12.5",
  "kovi-plugin-cmd",
+ "kovi-plugin-xiaoshi",
  "rustls",
- "xiaoshi-kovi-plugin",
 ]
 
 [[package]]
@@ -1362,6 +1362,28 @@ dependencies = [
  "kovi 0.12.5",
  "serde",
  "sysinfo",
+]
+
+[[package]]
+name = "kovi-plugin-xiaoshi"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "async-openai",
+ "async-trait",
+ "chrono",
+ "futures-util",
+ "kovi 0.12.5",
+ "log",
+ "ndarray",
+ "pgvector",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 1.0.69",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -3682,28 +3704,6 @@ name = "writeable"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9edde0db4769d2dc68579893f2306b26c6ecfbe0ef499b013d731b7b9247e0b9"
-
-[[package]]
-name = "xiaoshi-kovi-plugin"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "async-openai",
- "async-trait",
- "chrono",
- "futures-util",
- "kovi 0.12.5",
- "log",
- "ndarray",
- "pgvector",
- "reqwest 0.11.27",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror 1.0.69",
- "tokio",
- "uuid",
-]
 
 [[package]]
 name = "yoke"

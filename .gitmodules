@@ -1,3 +1,3 @@
-[submodule "plugins/xiaoshi-kovi-plugin"]
-	path = plugins/xiaoshi-kovi-plugin
-	url = https://github.com/graydovee/xiaoshi-kovi-plugin.git
+[submodule "plugins/kovi-plugin-xiaoshi"]
+	path = plugins/kovi-plugin-xiaoshi
+	url = https://github.com/graydovee/kovi-plugin-xiaoshi.git

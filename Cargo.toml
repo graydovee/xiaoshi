@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-xiaoshi-kovi-plugin = { version = "0.2.0", path = "plugins/xiaoshi-kovi-plugin" }
+kovi-plugin-xiaoshi = { version = "0.2.0", path = "plugins/kovi-plugin-xiaoshi" }
 kovi = { version = "0.12.5", features = ["rustls-tls-native-roots"] }
 kovi-plugin-cmd = "0.3.0"
 rustls = { version = "0.23", features = ["ring"] }
 
 [workspace]
-members = ["plugins/xiaoshi-kovi-plugin"]
+members = ["plugins/kovi-plugin-xiaoshi"]
 
 [workspace.dependencies]
 kovi = "0.12.5"

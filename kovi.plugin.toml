@@ -1,9 +1,9 @@
-[xiaoshi-kovi-plugin]
+[kovi-plugin-xiaoshi]
 enable_on_startup = true
 access_control = false
 list_mode = "WhiteList"
 
-[xiaoshi-kovi-plugin.access_list]
+[kovi-plugin-xiaoshi.access_list]
 friends = []
 groups = []
 

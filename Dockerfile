@@ -1,5 +1,5 @@
 # 构建阶段
-FROM rust:1.75-slim as builder
+FROM rust:1.85-slim AS builder
 
 # 安装必要的构建依赖
 RUN apt-get update && apt-get install -y \
@@ -9,18 +9,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# 复制依赖文件
-COPY Cargo.toml Cargo.lock ./
-COPY plugins/kovi-plugin-xiaoshi/Cargo.toml ./plugins/kovi-plugin-xiaoshi/
-
-# 创建虚拟项目以缓存依赖
-RUN mkdir -p src plugins/kovi-plugin-xiaoshi/src && \
-    echo "fn main() {}" > src/main.rs && \
-    echo "" > plugins/kovi-plugin-xiaoshi/src/lib.rs && \
-    cargo build --release && \
-    rm -rf src plugins/kovi-plugin-xiaoshi/src
-
-# 复制源代码
+# 复制所有源代码
 COPY . .
 
 # 构建应用

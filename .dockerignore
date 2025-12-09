@@ -1,0 +1,36 @@
+# Rust 构建产物
+target/
+**/*.rs.bk
+
+# Git 相关
+.git/
+.gitignore
+.gitmodules
+
+# GitHub 相关
+.github/
+
+# 文档
+*.md
+docs/
+kovi-doc/
+
+# IDE 配置
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 环境变量和配置
+.env
+.env.local
+*.log
+
+# 数据目录（如果需要挂载卷，不包含在镜像中）
+data/
+
+# 其他
+.DS_Store
+Thumbs.db
+

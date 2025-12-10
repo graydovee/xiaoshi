@@ -1,5 +1,5 @@
 # 构建阶段
-FROM rust:1.85-slim AS builder
+FROM rust:1.91-slim AS builder
 
 # 安装必要的构建依赖
 RUN apt-get update && apt-get install -y \
